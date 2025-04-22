@@ -7,21 +7,63 @@
 /* Create an empty queue */
 struct list_head *q_new()
 {
-    return NULL;
+    struct list_head *head = malloc(sizeof(struct list_head));
+    if (head)
+        INIT_LIST_HEAD(head);
+    return head;
 }
 
 /* Free all storage used by queue */
-void q_free(struct list_head *head) {}
+void q_free(struct list_head *l)
+{
+    if (!l)
+        return;
+    element_t *entry, *safe = NULL;
+
+    list_for_each_entry_safe (entry, safe, l, list)
+        q_release_element(entry);
+    free(l);
+}
 
 /* Insert an element at head of queue */
 bool q_insert_head(struct list_head *head, char *s)
 {
+    if (!head || !s)  // 確保 head 和 s 不是 NULL
+        return false;
+
+    element_t *new_element = malloc(sizeof(element_t));
+    if (!new_element)  // 檢查 malloc 是否成功
+        return false;
+
+    new_element->value = strdup(s);  // 分配記憶體並複製字串
+    if (!new_element->value) {
+        free(new_element);
+        return false;
+    }
+
+    list_add(&new_element->list, head);  // 插入節點
+
     return true;
 }
 
 /* Insert an element at tail of queue */
 bool q_insert_tail(struct list_head *head, char *s)
 {
+    if (!head || !s)  // 確保 head 和 s 不是 NULL
+        return false;
+
+    element_t *new_element = malloc(sizeof(element_t));
+    if (!new_element)  // 檢查 malloc 是否成功
+        return false;
+
+    new_element->value = strdup(s);  // 分配記憶體並複製字串
+    if (!new_element->value) {
+        free(new_element);
+        return false;
+    }
+
+    list_add_tail(&new_element->list, head);  // 插入節點
+
     return true;
 }
 
