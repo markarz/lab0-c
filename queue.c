@@ -216,20 +216,142 @@ bool q_delete_dup(struct list_head *head)
 /* Swap every two adjacent nodes */
 void q_swap(struct list_head *head)
 {
-    // https://leetcode.com/problems/swap-nodes-in-pairs/
+    if (!head || list_empty(head) || list_is_singular(head))
+        return;
+
+    struct list_head *cur = head->next;
+
+    while (cur != head && cur->next != head) {
+        struct list_head *next = cur->next;
+
+        // 取得 element_t 結構體
+        element_t *elem1 = list_entry(cur, element_t, list);
+        element_t *elem2 = list_entry(next, element_t, list);
+
+        // 交換 `value`（這裡只交換指標，因為 `value` 是字串）
+        char *temp = elem1->value;
+        elem1->value = elem2->value;
+        elem2->value = temp;
+
+        // 移動 cur 到下一對
+        cur = next->next;
+    }
 }
 
+
 /* Reverse elements in queue */
-void q_reverse(struct list_head *head) {}
+void q_reverse(struct list_head *head)
+{
+    if (!head || list_empty(head) || list_is_singular(head))
+        return;
+
+    struct list_head *cur = head->next, *last = head->prev;
+
+    while (cur != last && last->next != cur) {
+        element_t *elem1 = list_entry(cur, element_t, list);
+        element_t *elem2 = list_entry(last, element_t, list);
+
+        // 交換 `value`
+        char *temp = elem1->value;
+        elem1->value = elem2->value;
+        elem2->value = temp;
+
+        cur = cur->next;
+        last = last->prev;
+    }
+}
+
 
 /* Reverse the nodes of the list k at a time */
 void q_reverseK(struct list_head *head, int k)
 {
-    // https://leetcode.com/problems/reverse-nodes-in-k-group/
+    if (!head || list_empty(head) || list_is_singular(head) || k == 1)
+        return;
+
+    struct list_head *cur = head->next;
+    while (cur != head) {
+        struct list_head *start = cur, *end = cur;
+        int count = 1;
+
+        // 找到 k 個節點
+        while (count < k && end->next != head) {
+            end = end->next;
+            count++;
+        }
+
+        if (count < k)  // 剩餘節點不足 k 個，停止
+            break;
+
+        struct list_head *left = start, *right = end;
+        while (left != right && right->next != left) {
+            element_t *elem1 = list_entry(left, element_t, list);
+            element_t *elem2 = list_entry(right, element_t, list);
+
+            // 交換 `value`
+            char *temp = elem1->value;
+            elem1->value = elem2->value;
+            elem2->value = temp;
+
+            left = left->next;
+            right = right->prev;
+        }
+
+        cur = end->next;  // 移動到下一組
+    }
 }
 
 /* Sort elements of queue in ascending/descending order */
-void q_sort(struct list_head *head, bool descend) {}
+void q_sort(struct list_head *head, bool descend)
+{
+    if (!head || list_empty(head) || list_is_singular(head))
+        return;
+
+    struct list_head less, equal, greater;
+    INIT_LIST_HEAD(&less);
+    INIT_LIST_HEAD(&equal);
+    INIT_LIST_HEAD(&greater);
+
+    // **改進 pivot 選擇**
+    const element_t *first = list_first_entry(head, element_t, list);
+    const element_t *mid = list_entry(head->next, element_t, list);
+    const element_t *last = list_entry(head->prev, element_t, list);
+
+    const char *pivot_value = NULL;
+    if ((strcmp(first->value, mid->value) > 0) ^
+        (strcmp(first->value, last->value) > 0))
+        pivot_value = first->value;
+    else if ((strcmp(mid->value, first->value) > 0) ^
+             (strcmp(mid->value, last->value) > 0))
+        pivot_value = mid->value;
+    else
+        pivot_value = last->value;
+
+    struct list_head *cur, *safe;
+    list_for_each_safe (cur, safe, head) {
+        const element_t *elem = list_entry(cur, element_t, list);
+
+        int cmp = strcmp(elem->value, pivot_value);
+        if (descend)
+            cmp = -cmp;
+
+        if (cmp < 0) {
+            list_move_tail(cur, &less);
+        } else if (cmp == 0) {
+            list_move_tail(cur, &equal);
+        } else {
+            list_move_tail(cur, &greater);
+        }
+    }
+
+    // **遞歸 QuickSort**
+    q_sort(&less, descend);
+    q_sort(&greater, descend);
+
+    // **合併 sorted less -> equal -> sorted greater**
+    list_splice_tail(&less, head);
+    list_splice_tail(&equal, head);
+    list_splice_tail(&greater, head);
+}
 
 /* Remove every node which has a node with a strictly less value anywhere to
  * the right side of it */
