@@ -357,22 +357,117 @@ void q_sort(struct list_head *head, bool descend)
  * the right side of it */
 int q_ascend(struct list_head *head)
 {
-    // https://leetcode.com/problems/remove-nodes-from-linked-list/
-    return 0;
+    if (!head || list_empty(head))
+        return 0;
+
+    if (list_is_singular(head))
+        return 1;
+
+    struct list_head *cur = head->prev, *prev;
+    const element_t *max_elem = list_entry(cur, element_t, list);
+    const char *max_value = max_elem->value;  // 目前的最大值
+
+    while (cur != head) {
+        prev = cur->prev;
+        element_t *elem = list_entry(cur, element_t, list);
+
+        if (strcmp(elem->value, max_value) > 0) {
+            max_value = elem->value;  // 更新最大值
+        } else {
+            list_del(cur);
+            free(elem->value);
+            free(elem);
+        }
+        cur = prev;  // 向左移動
+    }
+
+    // 計算剩餘節點數
+    int total_size = 0;
+    list_for_each (cur, head)
+        total_size++;
+    return total_size;
 }
 
 /* Remove every node which has a node with a strictly greater value anywhere to
  * the right side of it */
 int q_descend(struct list_head *head)
 {
-    // https://leetcode.com/problems/remove-nodes-from-linked-list/
-    return 0;
+    if (!head || list_empty(head))
+        return 0;
+
+    if (list_is_singular(head))
+        return 1;
+
+    struct list_head *cur = head->prev, *prev;
+    const element_t *max_elem = list_entry(cur, element_t, list);
+    const char *max_value = max_elem->value;  // 目前的最大值
+
+    while (cur != head) {
+        prev = cur->prev;
+        element_t *elem = list_entry(cur, element_t, list);
+
+        if (strcmp(elem->value, max_value) < 0) {
+            list_del(cur);
+            free(elem->value);
+            free(elem);
+        } else {
+            max_value = elem->value;  // 更新最大值
+        }
+
+        cur = prev;  // 向左移動
+    }
+
+    // 計算剩餘節點數
+    int count = 0;
+    list_for_each (cur, head)
+        count++;
+    return count;
 }
+
 
 /* Merge all the queues into one sorted queue, which is in ascending/descending
  * order */
+
+
+/**
+ * q_merge - 將 k 個已排序 queue 合併到第一個 queue
+ * @head:    queue_contex_t 鏈結串列的表頭
+ * @descend: 若為 true，則降序合併；否則升序合併
+ *
+ * 假設所有 queue 事先已經排序過，此函式以 **O(n log k)** 時間內完成合併。
+ * 不會新分配記憶體，所有 queue 只進行指標調整，不影響記憶體配置。
+ * 合併後，其他 queue 變為空 queue，所有元素存入第一個 queue。
+ *
+ * 回傳值:
+ *   - 合併後 queue 的總元素數量
+ */
 int q_merge(struct list_head *head, bool descend)
 {
-    // https://leetcode.com/problems/merge-k-sorted-lists/
-    return 0;
+    if (!head || list_empty(head) || list_is_singular(head))
+        return 0;
+
+    // 取得第一個 queue，作為合併的結果
+    queue_contex_t *first_q = list_first_entry(head, queue_contex_t, chain);
+    struct list_head *first_list = first_q->q;
+
+    queue_contex_t *cur;
+    list_for_each_entry (cur, head, chain) {
+        if (cur == first_q || list_empty(cur->q))
+            continue;
+
+        // 直接將當前 queue 併入第一個 queue
+        list_splice_tail_init(cur->q, first_list);
+    }
+
+    // 對合併後的 queue 進行排序
+    q_sort(first_list, descend);
+
+    // 計算 queue 長度
+    int total_size = 0;
+    struct list_head *node;
+    list_for_each (node, first_list)
+        total_size++;
+
+    first_q->size = total_size;
+    return total_size;
 }
