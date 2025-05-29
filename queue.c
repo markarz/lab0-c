@@ -148,16 +148,70 @@ int q_size(struct list_head *head)
 /* Delete the middle node in queue */
 bool q_delete_mid(struct list_head *head)
 {
-    // https://leetcode.com/problems/delete-the-middle-node-of-a-linked-list/
+    if (!head)
+        return NULL;
+    if (list_is_singular(head)) {
+        list_del(head);
+        return true;
+    }
+
+    struct list_head *cur = NULL;
+    struct list_head *tmp = NULL;
+    int mid = 0, current = -1;
+    cur = head;
+    mid = q_size(head) / 2;
+    while (cur != NULL && current != mid) {
+        tmp = cur;
+        cur = cur->next;
+
+        current++;
+    }
+    element_t *del_element = list_entry(cur, element_t, list);  // O(1) 取得尾部
+    tmp->next = cur->next;
+    q_release_element(del_element);
     return true;
 }
 
 /* Delete all nodes that have duplicate string */
 bool q_delete_dup(struct list_head *head)
 {
-    // https://leetcode.com/problems/remove-duplicates-from-sorted-list-ii/
+    if (!head || list_empty(head) || list_is_singular(head))
+        return false;
+
+    struct list_head *cur = head->next;
+
+    while (cur != head) {
+        element_t *elem1 = list_entry(cur, element_t, list);
+        struct list_head *next = cur->next;
+
+        bool has_duplicate = false;
+
+        // 檢查後面是否有相同的數據
+        while (next != head) {
+            element_t *elem2 = list_entry(next, element_t, list);
+            if (strcmp(elem1->value, elem2->value) == 0) {
+                struct list_head *dup = next;
+                next = next->next;
+                list_del(dup);
+                q_release_element(elem2);
+                has_duplicate = true;
+            } else
+                break;
+        }
+
+        struct list_head *temp = cur;
+        cur = next;
+
+        // 如果 `has_duplicate == true`，代表 `temp` 也應該刪除
+        if (has_duplicate) {
+            list_del(temp);
+            q_release_element(elem1);
+        }
+    }
+
     return true;
 }
+
 
 /* Swap every two adjacent nodes */
 void q_swap(struct list_head *head)
