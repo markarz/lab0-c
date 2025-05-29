@@ -1,8 +1,7 @@
+#include "queue.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "queue.h"
 
 /* Create an empty queue */
 struct list_head *q_new()
@@ -46,6 +45,7 @@ bool q_insert_head(struct list_head *head, char *s)
     return true;
 }
 
+
 /* Insert an element at tail of queue */
 bool q_insert_tail(struct list_head *head, char *s)
 {
@@ -70,19 +70,79 @@ bool q_insert_tail(struct list_head *head, char *s)
 /* Remove an element from head of queue */
 element_t *q_remove_head(struct list_head *head, char *sp, size_t bufsize)
 {
-    return NULL;
+    // 1. 檢查串列是否存在且非空
+    if (!head || list_empty(head))
+        return NULL;
+
+    // 2. 取得頭節點
+    element_t *elem = list_first_entry(head, element_t, list);
+
+    // 3. 從串列中移除(時間複雜度 O(1))
+    list_del(&elem->list);
+
+    if (sp && bufsize > 0) {
+        // 先放個空字串，避免後面任何意外
+        sp[0] = '\0';
+
+        // 若 elem->value 不為空就複製字串
+        if (elem->value) {
+            // 複製最多 bufsize - 1 個字元，最後再補 '\0'
+            strncpy(sp, elem->value, bufsize - 1);
+            sp[bufsize - 1] = '\0';  // 保證結尾是 '\0'
+        }
+    }
+
+    // 5. 回傳這個被移除的節點
+    //    (呼叫端若需要把 elem->value 或 elem 本身 free 掉再自行決定)
+    return elem;
 }
+
+
 
 /* Remove an element from tail of queue */
 element_t *q_remove_tail(struct list_head *head, char *sp, size_t bufsize)
 {
-    return NULL;
+    // 1. 檢查串列是否存在且非空
+    if (!head || list_empty(head))
+        return NULL;
+
+    // 2. 取得「尾」節點（O(1)）
+    element_t *elem = list_last_entry(head, element_t, list);
+
+    // 3. 從串列中移除（O(1)）
+    list_del(&elem->list);
+
+    // 4. 若需要複製字串到 sp，就在這裡複製
+    if (sp && bufsize > 0) {
+        // 先將緩衝區置空，避免後面狀況導致舊資料殘留
+        sp[0] = '\0';
+
+        // 若 elem->value 不為 NULL，就做字串拷貝
+        if (elem->value) {
+            strncpy(sp, elem->value, bufsize - 1);
+            sp[bufsize - 1] = '\0';  // 確保結尾有 '\0'
+        }
+    }
+
+    // 5. 回傳被移除的節點 (呼叫端若需要釋放記憶體，可自行 free(elem->value) 與
+    // free(elem))
+    return elem;
 }
+
+
 
 /* Return number of elements in queue */
 int q_size(struct list_head *head)
 {
-    return -1;
+    if (!head)
+        return 0;
+
+    int len = 0;
+    struct list_head *li;
+
+    list_for_each (li, head)
+        len++;
+    return len;
 }
 
 /* Delete the middle node in queue */
