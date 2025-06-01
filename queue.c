@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+int q_merge(struct list_head *head, bool descend);
 /* Create an empty queue */
 struct list_head *q_new()
 {
@@ -70,30 +71,24 @@ bool q_insert_tail(struct list_head *head, char *s)
 /* Remove an element from head of queue */
 element_t *q_remove_head(struct list_head *head, char *sp, size_t bufsize)
 {
-    // 1. 檢查串列是否存在且非空
     if (!head || list_empty(head))
         return NULL;
 
-    // 2. 取得頭節點
+
     element_t *elem = list_first_entry(head, element_t, list);
 
-    // 3. 從串列中移除(時間複雜度 O(1))
+
     list_del(&elem->list);
 
     if (sp && bufsize > 0) {
-        // 先放個空字串，避免後面任何意外
         sp[0] = '\0';
 
-        // 若 elem->value 不為空就複製字串
         if (elem->value) {
-            // 複製最多 bufsize - 1 個字元，最後再補 '\0'
             strncpy(sp, elem->value, bufsize - 1);
-            sp[bufsize - 1] = '\0';  // 保證結尾是 '\0'
+            sp[bufsize - 1] = '\0';
         }
     }
 
-    // 5. 回傳這個被移除的節點
-    //    (呼叫端若需要把 elem->value 或 elem 本身 free 掉再自行決定)
     return elem;
 }
 
@@ -102,17 +97,15 @@ element_t *q_remove_head(struct list_head *head, char *sp, size_t bufsize)
 /* Remove an element from tail of queue */
 element_t *q_remove_tail(struct list_head *head, char *sp, size_t bufsize)
 {
-    // 1. 檢查串列是否存在且非空
     if (!head || list_empty(head))
         return NULL;
 
-    // 2. 取得「尾」節點（O(1)）
+
     element_t *elem = list_last_entry(head, element_t, list);
 
-    // 3. 從串列中移除（O(1)）
+
     list_del(&elem->list);
 
-    // 4. 若需要複製字串到 sp，就在這裡複製
     if (sp && bufsize > 0) {
         // 先將緩衝區置空，避免後面狀況導致舊資料殘留
         sp[0] = '\0';
@@ -124,8 +117,6 @@ element_t *q_remove_tail(struct list_head *head, char *sp, size_t bufsize)
         }
     }
 
-    // 5. 回傳被移除的節點 (呼叫端若需要釋放記憶體，可自行 free(elem->value) 與
-    // free(elem))
     return elem;
 }
 
@@ -300,58 +291,104 @@ void q_reverseK(struct list_head *head, int k)
     }
 }
 
-/* Sort elements of queue in ascending/descending order */
-void q_sort(struct list_head *head, bool descend)
+static inline void split_in_half(
+    struct list_head *src,      /* Modified to be the RIGHT part */
+    struct list_head *left_out) /* Output: the LEFT part */
 {
-    if (!head || list_empty(head) || list_is_singular(head))
-        return;
+    // `left_out` should be initialized by the caller, or here.
+    // The original code initialized it in split_in_half, which is fine.
+    INIT_LIST_HEAD(left_out);
 
-    struct list_head less, equal, greater;
-    INIT_LIST_HEAD(&less);
-    INIT_LIST_HEAD(&equal);
-    INIT_LIST_HEAD(&greater);
+    // `q_sort` ensures `src` has at least two elements when this is called.
+    struct list_head *slow_ptr =
+        src->next;  // `slow_ptr` will be the tail of the left part.
+                    // Starts at the first actual element.
+    struct list_head *fast_ptr =
+        src->next->next;  // `fast_ptr` helps find the midpoint.
+                          // Starts at the second actual element.
 
-    // **改進 pivot 選擇**
-    const element_t *first = list_first_entry(head, element_t, list);
-    const element_t *mid = list_entry(head->next, element_t, list);
-    const element_t *last = list_entry(head->prev, element_t, list);
+    // Advance `fast_ptr` by two nodes and `slow_ptr` by one node.
+    // When `fast_ptr` reaches the end, `slow_ptr` will be at the end of the
+    // first half.
+    while (fast_ptr != src && fast_ptr->next != src) {
+        slow_ptr = slow_ptr->next;
+        fast_ptr = fast_ptr->next->next;
+    }
+    list_cut_position(left_out, src, slow_ptr);
+}
 
-    const char *pivot_value = NULL;
-    if ((strcmp(first->value, mid->value) > 0) ^
-        (strcmp(first->value, last->value) > 0))
-        pivot_value = first->value;
-    else if ((strcmp(mid->value, first->value) > 0) ^
-             (strcmp(mid->value, last->value) > 0))
-        pivot_value = mid->value;
-    else
-        pivot_value = last->value;
 
-    struct list_head *cur, *safe;
-    list_for_each_safe (cur, safe, head) {
-        const element_t *elem = list_entry(cur, element_t, list);
+static inline void merge_two_sorted(struct list_head *dest,
+                                    struct list_head *left,
+                                    struct list_head *right,
+                                    bool descend)
+{
+    // `dest` is assumed to be initialized and empty by the caller (`q_sort`).
 
-        int cmp = strcmp(elem->value, pivot_value);
-        if (descend)
+    while (!list_empty(left) && !list_empty(right)) {
+        element_t *a = list_first_entry(left, element_t, list);
+        element_t *b = list_first_entry(right, element_t, list);
+
+        int cmp = strcmp(a->value, b->value);
+        if (descend) {  // If descending, reverse comparison logic
             cmp = -cmp;
+        }
 
-        if (cmp < 0) {
-            list_move_tail(cur, &less);
-        } else if (cmp == 0) {
-            list_move_tail(cur, &equal);
+        if (cmp <= 0) {  // a <= b (for ascending) or a >= b (for descending)
+            list_move_tail(&a->list, dest);
         } else {
-            list_move_tail(cur, &greater);
+            list_move_tail(&b->list, dest);
         }
     }
 
-    // **遞歸 QuickSort**
-    q_sort(&less, descend);
-    q_sort(&greater, descend);
-
-    // **合併 sorted less -> equal -> sorted greater**
-    list_splice_tail(&less, head);
-    list_splice_tail(&equal, head);
-    list_splice_tail(&greater, head);
+    /* 把剩餘節點串上去 */
+    // Use list_splice_tail_init to move all remaining elements and empty the
+    // source list.
+    if (!list_empty(left)) {
+        list_splice_tail_init(left, dest);
+    }
+    if (!list_empty(right)) {
+        list_splice_tail_init(right, dest);
+    }
 }
+
+
+void q_sort(struct list_head *head, bool descend)
+{
+    // Base cases: empty list or list with a single element is already sorted.
+    if (!head || list_empty(head) || list_is_singular(head)) {
+        return;
+    }
+
+    /* 1. 分割 (Split) ---------------------------------------------------- */
+    // `head` is the list_head of the current list to be sorted.
+    // We need a temporary list_head to store the left part after the split.
+    struct list_head left_half;
+    // INIT_LIST_HEAD(&left_half); // `split_in_half` will initialize
+    // `left_half`.
+
+    // After `split_in_half`:
+    // - `left_half` will contain the actual left sublist.
+    // - `head` (the input parameter) will be modified to contain the actual
+    // right sublist.
+    split_in_half(head, &left_half);
+
+    /* 2. 遞迴排序 (Recursive Sort) ---------------------------------------- */
+    q_sort(&left_half, descend);  // Sort the left part.
+    q_sort(head, descend);  // Sort the right part (which is now in `head`).
+
+    /* 3. 合併 (Merge) ---------------------------------------------------- */
+    struct list_head merged;
+    INIT_LIST_HEAD(&merged);  // `merged` must be an initialized empty list for
+                              // `merge_two_sorted`.
+
+
+    merge_two_sorted(&merged, &left_half, head, descend);
+
+
+    list_splice_tail_init(&merged, head);
+}
+
 
 /* Remove every node which has a node with a strictly less value anywhere to
  * the right side of it */
@@ -427,20 +464,6 @@ int q_descend(struct list_head *head)
 
 /* Merge all the queues into one sorted queue, which is in ascending/descending
  * order */
-
-
-/**
- * q_merge - 將 k 個已排序 queue 合併到第一個 queue
- * @head:    queue_contex_t 鏈結串列的表頭
- * @descend: 若為 true，則降序合併；否則升序合併
- *
- * 假設所有 queue 事先已經排序過，此函式以 **O(n log k)** 時間內完成合併。
- * 不會新分配記憶體，所有 queue 只進行指標調整，不影響記憶體配置。
- * 合併後，其他 queue 變為空 queue，所有元素存入第一個 queue。
- *
- * 回傳值:
- *   - 合併後 queue 的總元素數量
- */
 int q_merge(struct list_head *head, bool descend)
 {
     if (!head || list_empty(head) || list_is_singular(head))
