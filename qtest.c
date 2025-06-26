@@ -1056,6 +1056,67 @@ static bool do_next(int argc, char *argv[])
     return q_show(0);
 }
 
+
+void q_shuffle(struct list_head *head)
+{
+    if (!head || list_empty(head) || list_is_singular(head)) {
+        return;
+    }
+    int len = q_size(head);
+    if (len < 2) {
+        return;
+    }
+
+    struct list_head *tail_node = head->prev;
+
+
+    for (; len > 1; len--) {
+        int random_idx = rand() % len;
+
+
+        struct list_head *random_node = head->next;
+        for (int i = 0; i < random_idx; i++) {
+            random_node = random_node->next;
+        }
+
+
+        if (random_node != tail_node) {
+            element_t *random_entry = list_entry(random_node, element_t, list);
+            element_t *tail_entry = list_entry(tail_node, element_t, list);
+
+
+            char *temp_val = random_entry->value;
+            random_entry->value = tail_entry->value;
+            tail_entry->value = temp_val;
+        }
+
+
+        tail_node = tail_node->prev;
+    }
+}
+static bool do_shuffle(int argc, char *argv[])
+{
+    if (argc != 1) {
+        report(1, "%s takes no arguments", argv[0]);
+        return false;
+    }
+
+    error_check();
+
+    set_noallocate_mode(true);
+
+    if (exception_setup(true)) {
+        q_shuffle(current->q);
+    }
+
+    exception_cancel();
+    set_noallocate_mode(false);
+    q_show(3);
+
+
+    return !error_check();
+}
+
 static void console_init()
 {
     ADD_COMMAND(new, "Create new queue", "");
@@ -1086,6 +1147,7 @@ static void console_init()
     ADD_COMMAND(dedup, "Delete all nodes that have duplicate string", "");
     ADD_COMMAND(merge, "Merge all the queues into one sorted queue", "");
     ADD_COMMAND(swap, "Swap every two adjacent nodes in queue", "");
+    ADD_COMMAND(shuffle, "random test", "");
     ADD_COMMAND(ascend,
                 "Remove every node which has a node with a strictly less "
                 "value anywhere to the right side of it",
