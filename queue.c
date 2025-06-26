@@ -204,6 +204,7 @@ bool q_delete_dup(struct list_head *head)
 }
 
 
+
 /* Swap every two adjacent nodes */
 void q_swap(struct list_head *head)
 {
@@ -360,17 +361,9 @@ void q_sort(struct list_head *head, bool descend)
         return;
     }
 
-    /* 1. 分割 (Split) ---------------------------------------------------- */
-    // `head` is the list_head of the current list to be sorted.
-    // We need a temporary list_head to store the left part after the split.
-    struct list_head left_half;
-    // INIT_LIST_HEAD(&left_half); // `split_in_half` will initialize
-    // `left_half`.
 
-    // After `split_in_half`:
-    // - `left_half` will contain the actual left sublist.
-    // - `head` (the input parameter) will be modified to contain the actual
-    // right sublist.
+    struct list_head left_half;
+
     split_in_half(head, &left_half);
 
     /* 2. 遞迴排序 (Recursive Sort) ---------------------------------------- */

@@ -390,6 +390,10 @@ static bool do_time(int argc, char *argv[])
 
     return ok;
 }
+bool do_hello(int argc, char *argv[])
+{
+    return (bool) printf("Hello, World\n");
+}
 
 static bool use_linenoise = true;
 static int web_fd;
@@ -414,6 +418,7 @@ static bool do_web(int argc, char *argv[])
     return true;
 }
 
+
 /* Initialize interpreter */
 void init_cmd()
 {
@@ -431,6 +436,7 @@ void init_cmd()
     ADD_COMMAND(log, "Copy output to file", "file");
     ADD_COMMAND(time, "Time command execution", "cmd arg ...");
     ADD_COMMAND(web, "Read commands from builtin web server", "[port]");
+    ADD_COMMAND(hello, "Print hello message", "");
     add_cmd("#", do_comment_cmd, "Display comment", "...");
     add_param("simulation", &simulation, "Start/Stop simulation mode", NULL);
     add_param("verbose", &verblevel, "Verbosity level", NULL);
@@ -675,3 +681,4 @@ bool run_console(char *infile_name)
 
     return err_cnt == 0;
 }
+
